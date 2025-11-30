@@ -15,7 +15,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from constants import G_SI, M_EARTH_KG, R_EARTH_M, T_SUN_K
+from src.constants import G_SI, M_EARTH_KG, R_EARTH_M, T_SUN_K
 
 
 def surface_gravity_from_mass_radius(

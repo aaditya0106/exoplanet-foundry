@@ -5,6 +5,7 @@ Impute missing values using the research-backed strategy outlined in the plan.
 from __future__ import annotations
 
 import pandas as pd
+from sklearn.experimental import enable_iterative_imputer  # noqa: F401
 from sklearn.impute import IterativeImputer
 
 from src.mass_radius_imputation import impute_mass_radius
