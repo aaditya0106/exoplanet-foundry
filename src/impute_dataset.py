@@ -31,7 +31,6 @@ def iterative_imputation(df: pd.DataFrame) -> pd.DataFrame:
         sample_posterior=True,
         max_iter=15,
         initial_strategy="median",
-        n_jobs=-1,
         verbose=1,
         tol=1e-4,
     )

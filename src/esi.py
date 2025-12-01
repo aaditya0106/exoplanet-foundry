@@ -1,10 +1,7 @@
 """
 Earth Similarity Index (ESI) calculation based on Schulze-Makuch et al. (2011).
 
-ESI is computed as a geometric mean of normalized parameter similarities:
 ESI = (TT(1 - |x_i - x_earth|/|x_i + x_earth|))^(1/n)
-
-Where x_i are the planet parameters and x_earth are Earth's reference values.
 """
 
 from __future__ import annotations
@@ -15,24 +12,15 @@ import pandas as pd
 import src.constants as consts
 
 
-# Earth reference values for ESI calculation
-EARTH_RADIUS = 1.0  # R_earth
-EARTH_MASS = 1.0  # M_earth
-
-
 def compute_esi_component(
     planet_value: pd.Series,
     earth_value: float,
 ) -> pd.Series:
     """
-    Compute individual ESI component: 1 - |x - x_earth| / |x + x_earth|
-
-    Args:
-        planet_value: Series of planet parameter values
-        earth_value: Earth's reference value for this parameter
+    Compute ESI component: 1 - |x - x_earth| / |x + x_earth|
 
     Returns:
-        Series of ESI component values (0-1, where 1 is identical to Earth)
+        Series of component values (0-1, where 1 = identical to Earth)
     """
     numerator = np.abs(planet_value - earth_value)
     denominator = np.abs(planet_value + earth_value)
@@ -45,63 +33,77 @@ def compute_esi(
     df: pd.DataFrame,
     use_density: bool = True,
     use_escape_velocity: bool = True,
+    extra_features: list[str] | None = None,
+    earth_idx: int | None = None,
 ) -> pd.Series:
     """
-    Compute Earth Similarity Index (ESI) for all planets.
+    Generic ESI calculator for standard (5 params) or extended (5+N params).
 
-    ESI uses 4-5 parameters:
-    - Radius (R_earth)
-    - Mass (M_earth)
-    - Density (g/cm^3) - optional
-    - Escape velocity (km/s) - optional
-    - Equilibrium temperature (K)
+    Standard ESI: radius, mass, [density], [escape_vel], temperature
 
     Returns:
-        Series of ESI values (0-1, where 1 is identical to Earth)
+    Series of ESI values (0-1, Earth ≈ 1.0)
     """
     components = []
 
+    # Standard ESI components (research-backed constants)
     if "pl_rade" in df.columns:
-        radius_comp = compute_esi_component(df["pl_rade"], EARTH_RADIUS)
-        components.append(radius_comp)
+        components.append(compute_esi_component(df["pl_rade"], 1.0))
 
     if "pl_masse" in df.columns:
-        mass_comp = compute_esi_component(df["pl_masse"], EARTH_MASS)
-        components.append(mass_comp)
+        components.append(compute_esi_component(df["pl_masse"], 1.0))
 
     if use_density:
         if "pl_dens_calc" in df.columns:
-            density_comp = compute_esi_component(
-                df["pl_dens_calc"], consts.EARTH_DENSITY
+            components.append(
+                compute_esi_component(df["pl_dens_calc"], consts.EARTH_DENSITY)
             )
-            components.append(density_comp)
         elif "pl_dens" in df.columns:
-            density_comp = compute_esi_component(df["pl_dens"], consts.EARTH_DENSITY)
-            components.append(density_comp)
+            components.append(
+                compute_esi_component(df["pl_dens"], consts.EARTH_DENSITY)
+            )
 
     if use_escape_velocity and "pl_escvel_km_s" in df.columns:
-        esc_vel_comp = compute_esi_component(
-            df["pl_escvel_km_s"], consts.EARTH_ESCAPE_VELOCITY
+        components.append(
+            compute_esi_component(df["pl_escvel_km_s"], consts.EARTH_ESCAPE_VELOCITY)
         )
-        components.append(esc_vel_comp)
 
     if "pl_eqt" in df.columns:
-        temp_comp = compute_esi_component(df["pl_eqt"], consts.EARTH_EQUILIBRIUM_TEMP)
-        components.append(temp_comp)
+        components.append(
+            compute_esi_component(df["pl_eqt"], consts.EARTH_EQUILIBRIUM_TEMP)
+        )
+
+    if extra_features:
+        if earth_idx is None:
+            earth_mask = df.index[df.get("pl_name", pd.Series()).str.lower() == "earth"]
+            earth_idx = earth_mask[0] if len(earth_mask) > 0 else None
+
+        for feat in extra_features:
+            if feat in df.columns and earth_idx is not None:
+                earth_val = df.loc[earth_idx, feat]
+                if not pd.isna(earth_val) and earth_val != 0:
+                    components.append(compute_esi_component(df[feat], earth_val))
 
     if not components:
-        raise ValueError("No valid ESI components found in dataframe")
+        raise ValueError("No valid ESI components found")
 
+    # Geometric mean of all components
     components_df = pd.DataFrame(components).T
-    esi = components_df.prod(axis=1) ** (1.0 / len(components))
-
-    return esi
+    return components_df.prod(axis=1) ** (1.0 / len(components))
 
 
 def compute_esi_radius_mass_only(df: pd.DataFrame) -> pd.Series:
-    """
-    Compute simplified ESI using only radius and mass (2-parameter ESI).
-
-    This is useful when other parameters are missing.
-    """
+    """Simplified 2-parameter ESI (radius + mass only)."""
     return compute_esi(df, use_density=False, use_escape_velocity=False)
+
+
+def compute_extended_esi(
+    df: pd.DataFrame,
+    extra_features: list[str],
+    earth_idx: int | None = None,
+) -> pd.Series:
+    """
+    Alias for compute_esi with extra_features.
+    Extended ESI = geometric_mean(5 standard + N extra features).
+    """
+    return compute_esi(df, extra_features=extra_features, earth_idx=earth_idx)

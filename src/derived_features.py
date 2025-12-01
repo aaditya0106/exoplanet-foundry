@@ -107,11 +107,13 @@ def eccentricity_habitability_score(eccentricity: pd.Series) -> pd.Series:
 def annotate_in_habitable_zone(
     semi_major_axis_au: pd.Series,
     hz_bounds: HabitableZoneBounds,
+    tolerance: float = 0.01,
 ) -> pd.Series:
     """
     Flag planets whose semi-major axis falls inside the computed HZ bounds.
     """
+    inner_tol = hz_bounds.inner_au * (1 - tolerance)
+    outer_tol = hz_bounds.outer_au * (1 + tolerance)
     return (
-        (semi_major_axis_au >= hz_bounds.inner_au)
-        & (semi_major_axis_au <= hz_bounds.outer_au)
+        (semi_major_axis_au >= inner_tol) & (semi_major_axis_au <= outer_tol)
     ).astype(int)
