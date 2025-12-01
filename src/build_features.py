@@ -17,6 +17,17 @@ from src.derived_features import (
 )
 
 
+DERIVED_COLUMNS = [
+    "pl_surfgrav_m_s2",
+    "pl_escvel_km_s",
+    "pl_dens_calc",
+    "st_luminosity_solar",
+    "hz_inner_au",
+    "hz_outer_au",
+    "in_habitable_zone",
+]
+
+
 def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Append the derived feature columns to the input dataframe."""
     mass = df.pl_masse
