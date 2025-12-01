@@ -4,6 +4,8 @@ Train a Random Forest model and compute SHAP-based feature importances.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 import shap
@@ -41,6 +43,17 @@ DERIVED_FEATURES = [
     "pl_escvel_km_s",
     "pl_surfgrav_m_s2",
 ]
+
+
+@dataclass
+class FeatureImportanceResults:
+    importance_df: pd.DataFrame
+    feature_matrix: pd.DataFrame
+    X: np.ndarray
+    earth_vector: np.ndarray
+    model: RandomForestRegressor
+    shap_values: np.ndarray
+    df_filtered: pd.DataFrame
 
 
 def identify_correlated_features(
@@ -100,7 +113,10 @@ def compute_earth_distance(X: np.ndarray, earth_vector: np.ndarray) -> np.ndarra
 
 
 def prepare_feature_matrix(
-    df: pd.DataFrame, feature_columns: list[str] | None = None
+    df: pd.DataFrame,
+    feature_columns: list[str] | None = None,
+    min_features_required: float = 0.5,
+    required_core_features: list[str] | None = None,
 ) -> pd.DataFrame:
     """
     Clean and prepare feature matrix from dataframe.
@@ -108,8 +124,37 @@ def prepare_feature_matrix(
     if feature_columns is None:
         feature_columns = FEATURE_COLUMNS
 
+    if required_core_features is None:
+        # Core ESI features: radius and mass are minimum requirements
+        required_core_features = ["pl_rade", "pl_masse"]
+
     feature_df = df[feature_columns].copy()
     feature_df = feature_df.replace([np.inf, -np.inf], np.nan)
+
+    # Step 1: Filter rows that have required core features
+    core_features_present = [
+        f for f in required_core_features if f in feature_df.columns
+    ]
+    if core_features_present:
+        core_mask = feature_df[core_features_present].notna().all(axis=1)
+        feature_df = feature_df[core_mask].copy()
+        print(
+            f"Filtered to {len(feature_df)} planets with required core features: {core_features_present}"
+        )
+
+    # Step 2: Filter rows with too many missing values
+    if min_features_required > 0:
+        n_features = len(feature_columns)
+        min_features_count = int(n_features * min_features_required)
+        non_null_counts = feature_df.notna().sum(axis=1)
+        sufficient_data_mask = non_null_counts >= min_features_count
+        n_dropped = (~sufficient_data_mask).sum()
+        if n_dropped > 0:
+            print(
+                f"Dropped {n_dropped} planets with <{min_features_required:.0%} of features present"
+            )
+        feature_df = feature_df[sufficient_data_mask].copy()
+
     feature_df = feature_df.fillna(feature_df.median(numeric_only=True))
     return feature_df
 
@@ -188,26 +233,20 @@ def compute_feature_importance(
     df: pd.DataFrame,
     output_dir=None,
     correlation_threshold: float = 0.90,
-) -> tuple[
-    pd.DataFrame,
-    pd.DataFrame,
-    np.ndarray,
-    np.ndarray,
-    RandomForestRegressor,
-    np.ndarray,
-]:
+    min_features_required: float = 0.5,
+    required_core_features: list[str] | None = None,
+) -> FeatureImportanceResults:
     """
     Compute SHAP-based feature importance for Earth distance prediction.
 
     Returns:
-        importance_df: DataFrame with feature importance scores
-        feature_matrix: DataFrame with features and earth_distance
-        X: Standardized feature matrix (for visualization)
-        earth_vector: Earth's standardized feature vector
-        model: Trained RandomForestRegressor model
-        shap_values: SHAP values array (for visualization)
+        FeatureImportanceResults: Dataclass containing all results
     """
-    feature_df = prepare_feature_matrix(df)
+    feature_df = prepare_feature_matrix(
+        df,
+        min_features_required=min_features_required,
+        required_core_features=required_core_features,
+    )
 
     if correlation_threshold < 1.0:
         high_corr = identify_correlated_features(feature_df, correlation_threshold)
@@ -225,10 +264,11 @@ def compute_feature_importance(
                 )
                 feature_df = remove_correlated_features(feature_df, features_to_remove)
 
-    X, earth_vector = standardize_features(feature_df, df)
+    df_filtered = df.loc[feature_df.index].copy()
+    X, earth_vector = standardize_features(feature_df, df_filtered)
 
     distances = compute_earth_distance(X, earth_vector)
-    df["earth_distance"] = distances
+    df_filtered["earth_distance"] = distances
 
     model = train_earth_distance_model(feature_df, distances)
     feature_names = list(feature_df.columns)
@@ -241,6 +281,16 @@ def compute_feature_importance(
     shap_values = explainer.shap_values(feature_df)
 
     if output_dir:
-        save_feature_importance_results(df, feature_matrix, importance_df, output_dir)
+        save_feature_importance_results(
+            df_filtered, feature_matrix, importance_df, output_dir
+        )
 
-    return importance_df, feature_matrix, X, earth_vector, model, shap_values
+    return FeatureImportanceResults(
+        importance_df=importance_df,
+        feature_matrix=feature_matrix,
+        X=X,
+        earth_vector=earth_vector,
+        model=model,
+        shap_values=shap_values,
+        df_filtered=df_filtered,
+    )
