@@ -283,40 +283,13 @@ This project embodies HCDS principles:
 
 This project code is licensed under the MIT License. See `LICENSE` file for details.
 
-### Data Licenses
-
-- **NASA Exoplanet Archive Data**: Public domain (U.S. Government works, Title 17, Section 105)
-- **NASA Planetary Fact Sheet Data**: Public domain (U.S. Government works, Title 17, Section 105)
-
-### Terms of Use
-
-- **NASA Exoplanet Archive Terms of Use**: <https://exoplanetarchive.ipac.caltech.edu/docs/terms_of_use.html>
-- **NASA Data Usage Policy**: <https://www.nasa.gov/open/data.html>
-
-### Attribution
-
-When using data from this project, please cite:
-
-- NASA Exoplanet Archive (2025). Planetary Systems Composite Parameters Table. <https://exoplanetarchive.ipac.caltech.edu/>
-- NASA Planetary Fact Sheet. (2025). <https://nssdc.gsfc.nasa.gov/planetary/factsheet/>
-
 ## Key Resources and Hyperlinks
-
-### Data Providers and APIs
-
-- **NASA Exoplanet Archive**: <https://exoplanetarchive.ipac.caltech.edu/>
-- **NASA Exoplanet Archive TAP API**: <https://exoplanetarchive.ipac.caltech.edu/docs/TAP/usingTAP.html>
-- **NASA Exoplanet Archive Terms of Use**: <https://exoplanetarchive.ipac.caltech.edu/docs/terms_of_use.html>
-- **NASA Planetary Fact Sheet**: <https://nssdc.gsfc.nasa.gov/planetary/factsheet/>
-- **NASA Open Data Policy**: <https://www.nasa.gov/open/data.html>
 
 ### Documentation
 
 - **Main Report**: `notebooks/report.ipynb` - Complete research report with findings, methodology, and interpretations
 - **Exploratory Analysis**: `notebooks/eda.ipynb` - Detailed analysis code and exploratory work
 - **Data Ingestion**: `notebooks/data_ingestion.ipynb` - Data download and preprocessing procedures
-- **Presentation**: `reports/presentation.html` - Interactive presentation (open in browser, press F for fullscreen)
-- **Presentation Guide**: `reports/PRESENTATION_GUIDE.md` - Timing and talking points for presentation
 
 ### Running the Analysis
 
